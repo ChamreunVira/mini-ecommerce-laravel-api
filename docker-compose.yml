@@ -1,0 +1,16 @@
+services:
+    db:
+        image: postgres:16-alpine
+        container_name: vstore-pg-db
+        restart: always
+        environment:
+            POSTGRES_USER: vira
+            POSTGRES_PASSWORD: vira123
+            POSTGRES_DB: vstore_db
+        ports:
+            - "5432:5432"
+        volumes:
+            - vstore_pgdata:/var/lib/postgresql/data
+
+volumes:
+    vstore_pgdata:

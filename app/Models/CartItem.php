@@ -11,13 +11,20 @@ class CartItem extends Model
     // protected $fillable = ['name', 'price', 'quantity', 'total', 'cart_id', 'product_id'];
     protected $fillable = ['quantity', 'cart_id', 'product_id'];
 
-    public function cart(): BelongsTo
+    public function casts(): array
     {
-        return $this->belongsTo(Cart::class, 'cart_id', 'id');
+        return [
+            'quantity' => 'integer'
+        ];
     }
 
-    public function products(): BelongsTo
+    public function cart(): BelongsTo
     {
-        return $this->belongsTo(Product::class, 'product_id', 'id');
+        return $this->belongsTo(Cart::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 }

@@ -10,15 +10,15 @@ class Cart extends Model
 {
     protected $guarded = ['id'];
 
-    protected $fillable = ['subtotal', 'user_id'];
+    protected $fillable = ['user_id'];
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id', 'id');
+        return $this->belongsTo(User::class);
     }
 
     public function cartItems(): HasMany
     {
-        return $this->hasMany(CartItem::class, 'cat', 'id');
+        return $this->hasMany(CartItem::class);
     }
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -13,6 +14,7 @@ Route::group(["prefix" => "auth"], function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/register', [AuthController::class, 'register']);
 });
+
 Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -33,8 +35,10 @@ Route::apiResource('/categories', CategoryController::class);
 //cart routes
 Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'index']);
-    Route::post('/add/{product}', [CartController::class, 'add']);
+    Route::post('/add', [CartController::class, 'add']);
     Route::patch('/update/{cartId}', [CartController::class, 'update']);
     Route::delete('/delete/{cartId}', [CartController::class, 'destroy']);
     Route::delete('/clear', [CartController::class, 'clear']);
 });
+
+Route::resource('/wishlist', WishlistController::class);

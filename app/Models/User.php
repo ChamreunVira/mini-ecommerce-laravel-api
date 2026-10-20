@@ -21,7 +21,7 @@ class User extends Authenticatable
 
     protected $guarded = ['id'];
 
-    protected $hidden = ['password'];
+    protected $hidden = ['email_verified_at', 'password'];
 
     protected $fillable = ['name', 'email', 'password'];
 
@@ -41,6 +41,11 @@ class User extends Authenticatable
 
     public function cart(): HasOne
     {
-        return $this->hasOne(User::class, 'id', 'user_id');
+        return $this->hasOne(User::class, 'id', 'id');
+    }
+
+    public function wishlist(): HasOne
+    {
+        return $this->hasOne(Wishlist::class, 'id', 'id');
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Helpers\ApiResponse;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -34,6 +35,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (RouteNotFoundException $e, Request $request) {
             if ($request->is('api/*')) {
                 return ApiResponse::error($e->getMessage(), "Route not found.", Response::HTTP_BAD_REQUEST);
+            }
+        });
+
+        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error(null, $e->getMessage(), Response::HTTP_BAD_REQUEST);
+            }
+        });
+
+        $exceptions->render(function (QueryException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error($e->getMessage(), 'Quqery error.', Response::HTTP_BAD_REQUEST);
             }
         });
 

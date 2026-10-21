@@ -41,11 +41,11 @@ class User extends Authenticatable
 
     public function cart(): HasOne
     {
-        return $this->hasOne(User::class, 'id', 'id');
+        return $this->hasOne(Cart::class);
     }
 
     public function wishlist(): HasOne
     {
-        return $this->hasOne(Wishlist::class, 'id', 'id');
+        return $this->hasOne(Wishlist::class);
     }
 }

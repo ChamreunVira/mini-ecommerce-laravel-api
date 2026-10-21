@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ResourceNotFoundException;
 use App\Exceptions\StockException;
 use App\Helpers\ApiResponse;
+use App\Http\Resources\CartItemsResource;
 use App\Http\Resources\CartResource;
 use App\Models\Cart;
 use App\Models\CartItem;
@@ -28,7 +29,7 @@ class CartController extends Controller
         return ApiResponse::success($response);
     }
 
-    public function add(Request $request)
+    public function store(Request $request)
     {
         $data = $request->validate([
             'product_id' => 'required|integer|exists:products,id',
@@ -70,11 +71,11 @@ class CartController extends Controller
 
         $ownsItem = $cartItem->cart()->where('user_id', $user->id)->exists();
 
-        if ($ownsItem) {
+        if (!$ownsItem) {
             throw new ResourceNotFoundException("Cart not found.");
         }
 
-        $product = Product::whereId($cartItem->product_id)->first();
+        $product =  $cartItem->product()->first();
 
         if (empty($product)) throw new ResourceNotFoundException("Product not found.");
 
@@ -86,23 +87,21 @@ class CartController extends Controller
 
         $response = $cartItem->load('product:id,name,image,price');
 
-        return ApiResponse::success($response);
+        return ApiResponse::success(new CartItemsResource($response));
     }
 
-    public function destroy(CartItem $cartItem)
+    public function destroy(Request $request, CartItem $cartItem)
     {
-        $cartItem->product()->delete();
+        $ownsItem = $cartItem->cart()->where('user_id', $request->user()->id)->exists();
+        if (empty($ownsItem)) throw new ResourceNotFoundException('Cart not found.');
+        $cartItem->delete();
         return ApiResponse::success(null, "Cart item deleted successfully.");
     }
 
     public function clear(Request $request)
     {
-        $user = $request->user();
-        $cart = Cart::where("user_id", $user->id)->first();
-        if (empty($cart)) {
-            throw new \Exception("Cart not found.");
-        }
-        $cart->delete();
+        $cart = $request->user()->cart()->first();
+        if ($cart) $cart = $cart->items()->delete();
         return ApiResponse::success(null, "Cart deleted successfully.");
     }
 }

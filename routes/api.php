@@ -1,10 +1,13 @@
 <?php
 
+use App\Http\Controllers\AddressController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WishlistController;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 
 
@@ -35,10 +38,21 @@ Route::apiResource('/categories', CategoryController::class);
 //cart routes
 Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'index']);
-    Route::post('/items', [CartController::class, 'add']);
+    Route::post('/items', [CartController::class, 'store']);
     Route::patch('/items/{cartItem}', [CartController::class, 'update']);
     Route::delete('/items/{cartItem}', [CartController::class, 'destroy']);
-    Route::delete('/items/{cartItem}', [CartController::class, 'clear']);
+    Route::delete('/clear', [CartController::class, 'clear']);
 });
 
+Route::resource('/addresses', AddressController::class)->middleware('auth:sanctum');
+
+
+//order routes
+Route::middleware('auth:sanctum')->prefix('order')->group(function () {
+    Route::get('/', [OrderController::class, 'index']);
+    Route::post('/', [OrderController::class, 'store']);
+    Route::delete('/{order}', [OrderController::class,'destroy']);
+});
+
+//wishlist routes
 Route::resource('/wishlist', WishlistController::class);

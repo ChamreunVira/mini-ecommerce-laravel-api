@@ -3,28 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\ResourceNotFoundException;
+use App\Exceptions\StockException;
 use App\Helpers\ApiResponse;
+use App\Http\Resources\CartResource;
 use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\UnauthorizedException;
 
 class CartController extends Controller
 {
     public function index(Request $request)
     {
         $user = $request->user();
-        if (! $user) {
-            throw new ResourceNotFoundException("User not found.");
-        }
-        $cart = Cart::where('user_id', $user->id)->first();
+        $cart = Cart::where("user_id", $user->id)->first();
 
-        if (! $cart) {
-            throw new ResourceNotFoundException("Cart is empty.");
+        if (empty($cart)) {
+            return ApiResponse::success(['items' => []]);
         }
 
-        return ApiResponse::success($cart);
+        $response = new CartResource($cart->load('items.product:id,name,price,image'));
+
+        return ApiResponse::success($response);
     }
 
     public function add(Request $request)
@@ -36,47 +37,72 @@ class CartController extends Controller
 
         $quantity = $data['quantity'] ?? 1;
 
-        DB::transaction(function () use ($request, $data, $quantity) {
+        $cart = DB::transaction(function () use ($request, $data, $quantity) {
+            $cart = Cart::firstOrCreate(['user_id' => $request->user()->id]);
 
-            $cart = $request->user()->cart()->firstOrCreate([]);
+            $cartItem = CartItem::where('cart_id', $cart->id)
+                ->where('product_id', $data['product_id'])
+                ->first();
 
-            $cart = Cart::query()->whereKey($cart->id)->lockForUpdate()->firstOrFail();
-
-            Product::query()->whereKey($data['product_id'])->lockForUpdate()->firstOrFail();
-
-            $item = $cart->cartItems()->where('product_id', $data['product_id'])->firstOrFail();
-
-            if ($item) {
-                $item->increment('quantity', $quantity);
+            if ($cartItem) {
+                $cartItem->quantity += $quantity;
+                $cartItem->save();
             } else {
-                $cart->cartItems()->create([
+                $cartItem = CartItem::create([
+                    'cart_id' => $cart->id,
                     'product_id' => $data['product_id'],
                     'quantity' => $quantity
                 ]);
             }
-
-            dd(["Items" => $item->load('')]);
+            return $cart->load('items.product:id,name,image,price');
         }, 1);
+
+        return ApiResponse::success(new CartResource($cart), "Product have add to cart successfully.", 201);
     }
 
-    public function update(Request $request, string $productId)
+    public function update(Request $request, CartItem $cartItem)
     {
         $user = $request->user();
-        $this->validateUser($user);
-        $product = Product::find($productId);
+
+        $data = $request->validate([
+            'quantity' => 'required|integer|min:1'
+        ]);
+
+        $ownsItem = $cartItem->cart()->where('user_id', $user->id)->exists();
+
+        if ($ownsItem) {
+            throw new ResourceNotFoundException("Cart not found.");
+        }
+
+        $product = Product::whereId($cartItem->product_id)->first();
+
+        if (empty($product)) throw new ResourceNotFoundException("Product not found.");
+
+        if ($product->quantity < 0) throw new StockException("Insuffience stock.");
+
+        if ($product->quantity < $data['quantity']) throw new StockException("Stock is not enought.");
+
+        $cartItem->update(['quantity' => $data['quantity']]);
+
+        $response = $cartItem->load('product:id,name,image,price');
+
+        return ApiResponse::success($response);
     }
 
-    public function destroy(Request $request, string $cartId) {}
+    public function destroy(CartItem $cartItem)
+    {
+        $cartItem->product()->delete();
+        return ApiResponse::success(null, "Cart item deleted successfully.");
+    }
 
     public function clear(Request $request)
     {
-        $this->validateUser($request);
-    }
-
-    private function validateUser(mixed $user)
-    {
-        if (! $user) {
-            throw new UnauthorizedException("User unauthentication.");
+        $user = $request->user();
+        $cart = Cart::where("user_id", $user->id)->first();
+        if (empty($cart)) {
+            throw new \Exception("Cart not found.");
         }
+        $cart->delete();
+        return ApiResponse::success(null, "Cart deleted successfully.");
     }
 }

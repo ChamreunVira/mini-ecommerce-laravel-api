@@ -35,10 +35,10 @@ Route::apiResource('/categories', CategoryController::class);
 //cart routes
 Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'index']);
-    Route::post('/add', [CartController::class, 'add']);
-    Route::patch('/update/{cartId}', [CartController::class, 'update']);
-    Route::delete('/delete/{cartId}', [CartController::class, 'destroy']);
-    Route::delete('/clear', [CartController::class, 'clear']);
+    Route::post('/items', [CartController::class, 'add']);
+    Route::patch('/items/{cartItem}', [CartController::class, 'update']);
+    Route::delete('/items/{cartItem}', [CartController::class, 'destroy']);
+    Route::delete('/items/{cartItem}', [CartController::class, 'clear']);
 });
 
 Route::resource('/wishlist', WishlistController::class);

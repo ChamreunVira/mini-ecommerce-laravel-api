@@ -20,7 +20,7 @@ class OrderController extends Controller
     public function index()
     {
         $orders = Order::orderBy('created_at', 'desc')->paginate(10);
-        return ApiResponse::success($orders);
+        return ApiResponse::success($orders->load('items'));
     }
 
     /**
@@ -88,7 +88,7 @@ class OrderController extends Controller
             return $order;
         });
 
-        return ApiResponse::success($order->load(['user:id,name,email', 'address:id,recipient_name,phone,address_line,city']));
+        return ApiResponse::success($order->load(['user:id,name,email', 'items', 'address:id,recipient_name,phone,address_line,city']));
     }
 
     /**
@@ -123,7 +123,7 @@ class OrderController extends Controller
 
         return $order;
     }
-    
+
     private function generateOrderNumber()
     {
         return $orderNumber = "#ORD-" . date("Ymd") . "-" . str_pad(Order::count() + 1, 3, "0", STR_PAD_LEFT);

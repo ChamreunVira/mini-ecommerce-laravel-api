@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->string('transaction_id');
+            $table->string('qr_string');
+            $table->string('md5');
             $table->foreignId('order_id')->constrained()->cascadeOnDelete();
             $table->enum('method', ['khqr', 'cod'])->default('khqr');
             $table->enum('status', ['pending', 'failed', 'paid', 'refunded']);

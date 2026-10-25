@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OrderStatus;
+use App\Exceptions\ResourceNotFoundException;
 use App\Helpers\ApiResponse;
+use App\Helpers\KHQRBakongPayment;
 use App\Models\Order;
 use App\Models\Payment;
+use Exception;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Date;
+use Log;
 
 class PaymentController extends Controller
 {
@@ -19,18 +23,69 @@ class PaymentController extends Controller
         return Payment::orderBy("created_at", "desc")->paginate(10);
     }
 
+    public function check(string $transactionID)
+    {
+        try {
+            $payment = Payment::where('transaction_id', $transactionID)->first()->load("order");
+
+            if (!$payment) throw new ResourceNotFoundException("Payment transaction not found.");
+
+            $orderStatus = $payment->order->status;
+            if ($orderStatus == OrderStatus::cancelled->value) throw new Exception("Order cancelled cann't make payment.");
+
+            if ($payment->status == 'paid') return ApiResponse::success([
+                'id' => $payment->id,
+                'transaction_id' => $payment->transaction_id,
+                'status' => $payment->status,
+            ]);
+
+            $BAKONG_URL = "https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5";
+
+            $response = Http::timeout(5)->withToken(env('BAKONG_TOKEN'))->post($BAKONG_URL, [
+                'md5' => $payment->md5
+            ]);
+
+            if ($response->successful()) {
+                $responseBody = $response->json();
+                if ($responseBody['responseCode'] == 0) {
+                    $payment->update([
+                        'status' => 'paid'
+                    ]);
+
+                    $payment->order()->update([
+                        'status' => OrderStatus::comfirmed->value
+                    ]);
+
+                    return ApiResponse::success([
+                        'id' => $payment->id,
+                        'transaction_id' => $payment->transaction_id,
+                        'status' => $payment->status,
+                    ]);
+                }
+            }
+
+            return ApiResponse::success(null, "Success");
+        } catch (Exception $e) {
+            Log::info("Something went wrong.");
+        }
+    }
+
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, Order $order)
+    public function store(Request $request)
     {
         $data = $request->validate([
-            'method' => 'required|string|',
+            'order_id' => 'required|integer|exists:orders,id',
+            'method' => 'required|string',
         ]);
+
+        $order = Order::where('id', $data['order_id'])->first();
 
         // if (!$data['method'] . contains(['khqr', 'cod'])) throw new \Exception('Method of payment must be container COD or KHQR.');
 
         if ($order->status == OrderStatus::cancelled->value || $order->status == OrderStatus::paid->value) throw new \Exception('The payment cannot created with contain this status.');
+
 
         if ($data['method'] == 'cod') {
             $payment = Payment::create([
@@ -43,18 +98,26 @@ class PaymentController extends Controller
             return $payment->load('order');
         }
 
-        $payment = Payment::create([
+        $response = KHQRBakongPayment::generate($order->total, $order->order_number);
+
+        $payment = Payment::forceCreate([
             'order_id' => $order->id,
             'status' => 'pending',
             'method' => $data['method'],
             'transaction_id' => self::generateTransactionId(),
-            'amount' => $order->total,
+            'qr_string' => $response['qr'],
+            'md5' => $response['md5'],
+            'amount' => $order->total
         ]);
-        return [
-            ...$payment->toArray(),
-            'qr_string' => 'sjfksfnskfnjsfn2n4324j24k2j34',
+
+        return ApiResponse::success([
+            'id' => $payment->id,
+            'transaction_id' => $payment->transaction_id,
+            'amount' => $payment->amount,
+            'status' => $payment->status,
+            'qr_string' => $response['qr'],
             'qr_expiry' => now()->addMinutes(5),
-        ];
+        ]);
     }
 
     /**
@@ -84,6 +147,6 @@ class PaymentController extends Controller
 
     private function generateTransactionId()
     {
-        return "#TRX-" . date('Ymd') . "-" . str_pad(Payment::count() + 1, 3, '0', STR_PAD_LEFT);
+        return "TXN-" . date('Ymd') . "-" . str_pad(Payment::count() + 1, 3, '0', STR_PAD_LEFT);
     }
 }

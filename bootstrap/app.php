@@ -1,6 +1,7 @@
 <?php
 
 use App\Helpers\ApiResponse;
+use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -8,7 +9,6 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Nette\Schema\ValidationException;
-use Pest\Expectation;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 
@@ -20,7 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'role' => RoleMiddleware::class
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -50,11 +52,5 @@ return Application::configure(basePath: dirname(__DIR__))
                 return ApiResponse::error($e->getMessage(), 'Quqery error.', Response::HTTP_BAD_REQUEST);
             }
         });
-
-        // $exceptions->render(function (Throwable $e, Request $request) {
-        //     if ($request->is('api/**')) {
-        //         return ApiResponse::error($e->getMessage()); 
-        //     }
-        // });
     })
     ->create();

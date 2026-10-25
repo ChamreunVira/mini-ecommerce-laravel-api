@@ -13,7 +13,8 @@ class Payment extends Model
         'order_id',
         'status',
         'method',
-        'amount'
+        'amount',
+        'md5'
     ];
 
     public function order(): BelongsTo

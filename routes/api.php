@@ -28,12 +28,12 @@ Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::apiResource('/products', ProductController::class)
-    ->middleware('auth:sanctum')
+    ->middleware(['auth:sanctum', 'role:admin'])
     ->except(['index', 'show']);
 
 //category routes
 Route::get('/categories', [CategoryController::class, 'index']);
-Route::apiResource('/categories', CategoryController::class);
+Route::apiResource('/categories', CategoryController::class)->middleware(['auth:sanctum', 'role:amdin']);
 
 //cart routes
 Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
@@ -60,9 +60,10 @@ Route::middleware('auth:sanctum')->prefix('order')->group(function () {
 
 //payment routes
 Route::middleware('auth:sanctum')->prefix('payment')->group(function () {
-    Route::get('/', [PaymentController::class, 'index']);
+    Route::get('/', [PaymentController::class, 'index'])->middleware('role:admin');
+    Route::get('/{transactionId}/status', [PaymentController::class, 'check']);
     Route::get('/{payment}', [PaymentController::class, 'show']);
-    Route::post('/{order}', [PaymentController::class, 'store']);
+    Route::post('/', [PaymentController::class, 'store']);
 });
 
 //wishlist routes

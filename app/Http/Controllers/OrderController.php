@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\OrderStatus;
 use App\Helpers\ApiResponse;
+use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Payment;
 use Illuminate\Http\Request;
@@ -20,7 +21,14 @@ class OrderController extends Controller
     public function index()
     {
         $orders = Order::orderBy('created_at', 'desc')->paginate(10);
-        return ApiResponse::success($orders->load('items'));
+        $orders->load([
+            'address',
+            'items',
+            'payment'
+        ]);
+
+        // return $orders;
+        return ApiResponse::success(OrderResource::collection($orders));
     }
 
     /**
@@ -88,7 +96,12 @@ class OrderController extends Controller
             return $order;
         });
 
-        return ApiResponse::success($order->load(['user:id,name,email', 'items', 'address:id,recipient_name,phone,address_line,city']));
+        return ApiResponse::success([
+            'id' => $order->id,
+            'status' => $order->status,
+            'currency' => "USD",
+            'ammount_due' => $order->total
+        ]);
     }
 
     /**

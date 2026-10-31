@@ -63,6 +63,36 @@ class AuthController extends Controller
         return ApiResponse::success($user);
     }
 
+    public function updateProfile(Request $request)
+    {
+        $fields = $request->validate([
+            'name' => 'required|string|min:3|max:255',
+        ]);
+
+        $user = $request->user();
+        $user->update($fields);
+
+        return ApiResponse::success(new UserResource($user->fresh()), 'Profile updated successfully.');
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $fields = $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($fields['current_password'], $user->password)) {
+            return ApiResponse::error(null, 'The current password is incorrect.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $user->update(['password' => $fields['password']]);
+
+        return ApiResponse::success(null, 'Password updated successfully.');
+    }
+
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

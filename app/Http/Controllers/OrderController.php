@@ -64,14 +64,10 @@ class OrderController extends Controller
         $direction = $data['direction'] ?? "asc";
         $limit = $data['limit'] ?? 10;
     
-        $orders = $user->orders()->get();
-        $orders->paginate($limit);
-
-        $orders->load([
-            'address',
-            'items',
-            'payment'
-        ]);
+        $orders = $user->orders()
+            ->orderBy($sortBy, $direction)
+            ->with(['address', 'items', 'payment'])
+            ->paginate($limit);
 
         return response()->json([
             'success' => true,

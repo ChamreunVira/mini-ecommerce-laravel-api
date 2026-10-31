@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\ApiResponse;
+use App\Http\Resources\WishlistResource;
 use App\Models\Wishlist;
 use Illuminate\Http\Request;
 
@@ -11,10 +12,10 @@ class WishlistController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $wishlist = Wishlist::all()->load(['user', 'products']);
-        return ApiResponse::success($wishlist);
+        $wishlist = $request->user()->wishlist()->with('product')->latest()->get();
+        return ApiResponse::success(WishlistResource::collection($wishlist));
     }
 
     /**
@@ -22,15 +23,13 @@ class WishlistController extends Controller
      */
     public function store(Request $request)
     {
-        $wishlist = $request->user()->wishlist()->firstOrCreate([]);
-
         $data = $request->validate([
             'product_id' => 'required|integer|exists:products,id'
         ]);
 
-        $wishlist = Wishlist::create($data);
+        $wishlist = $request->user()->wishlist()->firstOrCreate($data);
 
-        return ApiResponse::success($wishlist);
+        return ApiResponse::success(new WishlistResource($wishlist->load('product')));
     }
 
     /**
@@ -60,8 +59,11 @@ class WishlistController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Wishlist $wishlist)
+    public function destroy(Request $request, Wishlist $wishlist)
     {
-        //
+        abort_unless($wishlist->user_id === $request->user()->id, 404);
+        $wishlist->delete();
+
+        return ApiResponse::success(null, 'Wishlist item removed.');
     }
 }

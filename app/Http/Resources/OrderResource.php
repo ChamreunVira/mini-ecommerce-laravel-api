@@ -22,8 +22,6 @@ class OrderResource extends JsonResource
             'subtotal' => (string) $this->subtotal,
             'total' => (string) $this->total,
 
-            'created_at' => $this->created_at?->toISOString(),
-
             'items' => OrderItemResource::collection(
                 $this->whenLoaded('items')
             ),
@@ -42,6 +40,9 @@ class OrderResource extends JsonResource
             'payment' => PaymentResource::make(
                 $this->whenLoaded('payment')
             ),
+
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

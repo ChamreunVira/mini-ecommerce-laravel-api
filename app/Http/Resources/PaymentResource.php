@@ -8,7 +8,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class PaymentResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
+     * Transform the resource    return await http.post('/product', buildProductFormData(payload), MULTIPART_CONFIG); into an array.
      *
      * @return array<string, mixed>
      */
@@ -16,13 +16,13 @@ class PaymentResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'method' => $this->payment_method,
+            'transaction_id' => $this->transaction_id,
+            'method' => $this->method,
+            'order_number' => $this->order?->order_number,
             'status' => $this->status,
             'amount' => (string) $this->amount,
-            'currency' => $this->currency,
-
-            'qr_string' => $this->qr_string,
-            'qr_expiry' => $this->qr_expiry?->toISOString(),
+            'currency' => $this->currency ?? "USD",
+            'updated_at' => $this->updated_at
         ];
     }
 }

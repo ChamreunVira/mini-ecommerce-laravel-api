@@ -4,20 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\ResourceNotFoundException;
 use App\Helpers\ApiResponse;
+use App\Http\Resources\PaginationResource;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with('category')->get();
+        $data = $request->validate([
+            'sort_by' => ['sometimes', 'string', Rule::in(['created_at', 'price', 'quantity', 'name'])],
+            'direction' => ['sometimes', 'string', Rule::in(['asc', 'desc'])],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:100']
+        ]);
 
-        return ApiResponse::success(ProductResource::collection($products));
+        $sortBy = $data['sort_by'] ?? "created_at";
+        $direction = $data['direction'] ?? "asc";
+        $limit = $data['limit'] ?? 10;
+
+        $products = Product::orderBy($sortBy, $direction)->paginate($limit);
+
+        return [
+            'success' => true,
+            'message' => "Success to retreive Product.",
+            'data' => ProductResource::collection($products),
+            'meta' => new PaginationResource($products)
+        ];
     }
 
     /**

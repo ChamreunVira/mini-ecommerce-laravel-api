@@ -10,13 +10,13 @@ class Wishlist extends Model
     protected $guarded = ['id'];
     protected $fillable = ['user_id', 'product_id'];
 
-    public function users(): BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function products()
+    public function product(): BelongsTo
     {
-        return $this->hasMany(Product::class);
+        return $this->belongsTo(Product::class);
     }
 }

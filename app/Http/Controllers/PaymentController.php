@@ -6,11 +6,15 @@ use App\Enums\OrderStatus;
 use App\Exceptions\ResourceNotFoundException;
 use App\Helpers\ApiResponse;
 use App\Helpers\KHQRBakongPayment;
+use App\Http\Resources\PaginationResource;
+use App\Http\Resources\PaymentResource;
 use App\Models\Order;
 use App\Models\Payment;
 use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Carbon\Carbon;
 use Log;
 
 class PaymentController extends Controller
@@ -18,9 +22,101 @@ class PaymentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return Payment::orderBy("created_at", "desc")->paginate(10);
+
+        $data  = $request->validate([
+            'sort_by' => ['sometimes', 'string', Rule::in(['asc', 'desc'])],
+            'direction' => ['sometimes', 'string', Rule::in(['asc', 'desc'])],
+            'limit' => ['sometimes', 'integer']
+        ]);
+
+        $sortBy = $data['sort_by'] ?? "created_at";
+        $direction = $data['direction'] ?? "asc";
+        $limit = $data['limit'] ?? 10;
+
+        $payments = Payment::orderBy($sortBy, $direction)->paginate($limit);
+        $now = Carbon::now();
+        $currentStart = $now->copy()->startOfMonth();
+        $previousStart = $currentStart->copy()->subMonth()->startOfMonth();
+        $currentMetrics = $this->paymentMetricsBetween($currentStart, $now->copy()->endOfMonth());
+        $previousMetrics = $this->paymentMetricsBetween(
+            $previousStart,
+            $currentStart->copy()->subMonth()->endOfMonth(),
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Success to retreive payments.',
+            'data' => PaymentResource::collection($payments),
+            'meta' => new PaginationResource($payments),
+            'metrics' => [
+                [
+                    'key' => 'paymentsReceived',
+                    'title' => 'Payments Received',
+                    'value' => $currentMetrics['paid']['amount'],
+                    'format' => 'currency',
+                    'changePercent' => $this->changePercent($currentMetrics['paid']['amount'], $previousMetrics['paid']['amount']),
+                ],
+                [
+                    'key' => 'pendingPayments',
+                    'title' => 'Pending Payments',
+                    'value' => $currentMetrics['pending']['amount'],
+                    'format' => 'currency',
+                    'changePercent' => $this->changePercent($currentMetrics['pending']['amount'], $previousMetrics['pending']['amount']),
+                ],
+                [
+                    'key' => 'refundedPayments',
+                    'title' => 'Refunded Payments',
+                    'value' => $currentMetrics['refunded']['amount'],
+                    'format' => 'currency',
+                    'changePercent' => $this->changePercent($currentMetrics['refunded']['amount'], $previousMetrics['refunded']['amount']),
+                ],
+                [
+                    'key' => 'failedPayments',
+                    'title' => 'Failed Payments',
+                    'value' => $currentMetrics['failed']['count'],
+                    'format' => 'number',
+                    'changePercent' => $this->changePercent($currentMetrics['failed']['count'], $previousMetrics['failed']['count']),
+                ],
+            ],
+            'timestamp' => date('Ymd')
+        ]);
+    }
+
+    private function paymentMetricsBetween(Carbon $start, Carbon $end): array
+    {
+        $summary = Payment::query()
+            ->whereIn('id', function ($query) {
+                $query->selectRaw('MAX(id)')
+                    ->from('payments')
+                    ->groupBy('transaction_id');
+            })
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('status, COUNT(*) as count, COALESCE(SUM(amount), 0) as amount')
+            ->groupBy('status')
+            ->get()
+            ->keyBy('status');
+
+        return collect(['paid', 'pending', 'refunded', 'failed'])
+            ->mapWithKeys(function (string $status) use ($summary) {
+                $row = $summary->get($status);
+
+                return [$status => [
+                    'count' => (int) ($row?->count ?? 0),
+                    'amount' => (float) ($row?->amount ?? 0),
+                ]];
+            })
+            ->all();
+    }
+
+    private function changePercent(float $current, float $previous): float
+    {
+        if ($previous === 0.0) {
+            return $current > 0 ? 100.0 : 0.0;
+        }
+
+        return round((($current - $previous) / $previous) * 100, 1);
     }
 
     public function check(string $transactionID)
@@ -70,6 +166,7 @@ class PaymentController extends Controller
         }
     }
 
+
     /**
      * Store a newly created resource in storage.
      */
@@ -77,12 +174,10 @@ class PaymentController extends Controller
     {
         $data = $request->validate([
             'order_id' => 'required|integer|exists:orders,id',
-            'method' => 'required|string',
+            'method' => ['required', 'string', Rule::in(['cod', 'khqr'])],
         ]);
 
         $order = Order::where('id', $data['order_id'])->first();
-
-        // if (!$data['method'] . contains(['khqr', 'cod'])) throw new \Exception('Method of payment must be container COD or KHQR.');
 
         if ($order->status == OrderStatus::cancelled->value || $order->status == OrderStatus::paid->value) throw new \Exception('The payment cannot created with contain this status.');
 
@@ -126,6 +221,17 @@ class PaymentController extends Controller
     public function show(Payment $payment)
     {
         return $payment->load('order');
+    }
+
+    public function updateStatus(Request $request, Payment $payment)
+    {
+        $data = $request->validate([
+            'status' => ['required', 'string', Rule::in(['pending', 'failed', 'paid', 'refunded'])],
+        ]);
+
+        $payment->update(['status' => $data['status']]);
+
+        return ApiResponse::success(new PaymentResource($payment->fresh()));
     }
 
     /**

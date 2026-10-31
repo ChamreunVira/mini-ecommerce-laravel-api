@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WishlistController;
@@ -33,7 +34,10 @@ Route::apiResource('/products', ProductController::class)
 
 //category routes
 Route::get('/categories', [CategoryController::class, 'index']);
-Route::apiResource('/categories', CategoryController::class)->middleware(['auth:sanctum', 'role:amdin']);
+Route::apiResource('/categories', CategoryController::class)->middleware(['auth:sanctum', 'role:admin'])->except('index');
+
+// admin overview
+Route::get('/overview', [OverviewController::class, 'index'])->middleware(['auth:sanctum', 'role:admin']);
 
 //cart routes
 Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
@@ -51,20 +55,24 @@ Route::resource('/addresses', AddressController::class)->middleware('auth:sanctu
 //order routes
 Route::middleware('auth:sanctum')->prefix('order')->group(function () {
     Route::get('/', [OrderController::class, 'index']);
+    Route::get('/user', [OrderController::class, 'userOrder']);
     Route::post('/', [OrderController::class, 'store']);
     Route::get('/{order}', [OrderController::class, 'show']);
     Route::patch('/{order}', [OrderController::class, 'update']);
     Route::delete('/{order}', [OrderController::class, 'destroy']);
-    Route::patch('/{order}/status', [OrderController::class, 'updateStatus']);
+    Route::patch('/{order}/status', [OrderController::class, 'updateStatus'])->middleware('role:admin');
 });
 
 //payment routes
 Route::middleware('auth:sanctum')->prefix('payment')->group(function () {
     Route::get('/', [PaymentController::class, 'index'])->middleware('role:admin');
     Route::get('/{transactionId}/status', [PaymentController::class, 'check']);
+    Route::patch('/{payment}/status', [PaymentController::class, 'updateStatus'])->middleware('role:admin');
     Route::get('/{payment}', [PaymentController::class, 'show']);
     Route::post('/', [PaymentController::class, 'store']);
 });
 
 //wishlist routes
-Route::resource('/wishlist', WishlistController::class);
+Route::resource('/wishlist', WishlistController::class)
+    ->middleware('auth:sanctum')
+    ->only(['index', 'store', 'destroy']);

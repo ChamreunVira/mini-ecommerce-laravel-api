@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Enums\OrderStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Resources\OrderResource;
+use App\Http\Resources\PaginationResource;
 use App\Models\Order;
-use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
@@ -18,9 +19,20 @@ class OrderController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $orders = Order::orderBy('created_at', 'desc')->paginate(10);
+        $data  = $request->validate([
+            'sort_by' => ['sometimes', 'string', Rule::in(['asc', 'desc'])],
+            'direction' => ['sometimes', 'string', Rule::in(['asc', 'desc'])],
+            'limit' => ['sometimes', 'integer']
+        ]);
+
+        $sortBy = $data['sort_by'] ?? "created_at";
+        $direction = $data['direction'] ?? "asc";
+        $limit = $data['limit'] ?? 10;
+
+        $orders = Order::orderBy($sortBy, $direction)->paginate($limit);
+
         $orders->load([
             'address',
             'items',
@@ -28,7 +40,46 @@ class OrderController extends Controller
         ]);
 
         // return $orders;
-        return ApiResponse::success(OrderResource::collection($orders));
+        return response()->json([
+            'success' => true,
+            'message' => 'Success to retreive payments.',
+            'data' => OrderResource::collection($orders),
+            'meta' => new PaginationResource($orders),
+            'timestamp' => date('Ymd')
+        ]);
+    }
+
+    public function userOrder(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) abort(401, "Un authentication.");
+
+        $data  = $request->validate([
+            'sort_by' => ['sometimes', 'string', Rule::in(['asc', 'desc'])],
+            'direction' => ['sometimes', 'string', Rule::in(['asc', 'desc'])],
+            'limit' => ['sometimes', 'integer']
+        ]);
+
+        $sortBy = $data['sort_by'] ?? "created_at";
+        $direction = $data['direction'] ?? "asc";
+        $limit = $data['limit'] ?? 10;
+    
+        $orders = $user->orders()->get();
+        $orders->paginate($limit);
+
+        $orders->load([
+            'address',
+            'items',
+            'payment'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Success to retreive payments.',
+            'data' => OrderResource::collection($orders),
+            'meta' => new PaginationResource($orders),
+            'timestamp' => date('Ymd')
+        ]);
     }
 
     /**
@@ -129,12 +180,18 @@ class OrderController extends Controller
 
     public function updateStatus(Request $request, Order $order)
     {
-        $status = $request->input('status');
-        if (!$status . contains(OrderStatus::all())) throw new \Exception('Order status must be follow busenues rule.');
+        $data = $request->validate([
+            'status' => [
+                'required',
+                'string',
+                Rule::in(array_map(static fn(OrderStatus $status): string => $status->value, OrderStatus::cases())),
+            ],
+        ]);
 
-        $order->status = $status;
+        $order->status = $data['status'];
+        $order->save();
 
-        return $order;
+        return ApiResponse::success(new OrderResource($order->load(['address', 'items', 'payment'])));
     }
 
     private function generateOrderNumber()

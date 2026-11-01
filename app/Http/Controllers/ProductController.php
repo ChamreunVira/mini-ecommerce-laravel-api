@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\OrderStatus;
 use App\Exceptions\ResourceNotFoundException;
 use App\Helpers\ApiResponse;
 use App\Http\Resources\PaginationResource;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -75,6 +77,29 @@ class ProductController extends Controller
         return ApiResponse::success(new ProductResource($product));
     }
 
+    public function bestSelling(Request $request)
+    {
+        $limit = min($request->integer('limit', 8), 20);
+        $cancelledStatus = OrderStatus::cancelled->value;
+
+        $sales = OrderItem::query()
+            ->whereHas('order', fn($query) => $query->where('status', '!=', $cancelledStatus))
+            ->selectRaw('product_id, SUM(quantity) as sold_quantity')
+            ->groupBy('product_id')
+            ->orderByDesc('sold_quantity')
+            ->limit($limit)
+            ->get();
+
+        $products = Product::query()
+            ->with('category')
+            ->whereIn('id', $sales->pluck('product_id'))
+            ->get()
+            ->sortBy(fn(Product $product) => $sales->search(fn($sale) => $sale->product_id === $product->id))
+            ->values();
+
+        return ApiResponse::success(ProductResource::collection($products));
+    }
+
 
     /**
      * Update the specified resource in storage.
@@ -82,20 +107,27 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $validated = $request->validate([
-            'name' => 'required',
-            'description' => 'required',
-            'price' => 'required',
-            'quantity' => 'required',
+            'name' => 'required|string|min:3|max:30',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'quantity' => 'required|integer|min:0',
+            'image' => 'sometimes|image|mimes:png,jpg,webp,jpeg|max:10240',
             'category_id' => 'required|exists:categories,id'
         ]);
 
-        $product->update([
+        $productData = [
             'name' => $validated['name'],
-            'description' => $validated['description'],
+            'description' => $validated['description'] ?? null,
             'price' => $validated['price'],
             'quantity' => $validated['quantity'],
             'category_id' => $validated['category_id']
-        ]);
+        ];
+
+        if ($request->hasFile('image')) {
+            $productData['image'] = $request->file('image')->store('images', 'public');
+        }
+
+        $product->update($productData);
 
         return ApiResponse::success(new ProductResource($product));
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\ApiResponse;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
@@ -23,6 +24,7 @@ class CategoryController extends Controller
     {
         $validated =  $request->validate([
             'name' => 'required|string|min:3',
+            'status' => ['sometimes', 'string', Rule::in(['active', 'inactive'])],
         ]);
 
         $category = Category::create([
@@ -38,7 +40,7 @@ class CategoryController extends Controller
      */
     public function show(Category $category)
     {
-        return response()->json($category, 200);
+        return ApiResponse::success($category);
     }
 
     /**
@@ -46,8 +48,15 @@ class CategoryController extends Controller
      */
     public function update(Request $request, Category $category)
     {
-        $category->update($request->all());
-        return response()->json($category, 200);
+        $validated = $request->validate([
+            'name' => 'sometimes|string|min:3',
+            'description' => 'sometimes|nullable|string',
+            'status' => ['sometimes', 'string', Rule::in(['active', 'inactive'])],
+        ]);
+
+        $category->update($validated);
+
+        return ApiResponse::success($category->fresh());
     }
 
     /**

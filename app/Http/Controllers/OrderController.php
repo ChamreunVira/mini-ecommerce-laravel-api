@@ -154,10 +154,15 @@ class OrderController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Order $order)
+    public function show(Request $request, Order $order)
     {
-        $order = Order::with(['items', 'user', 'address:id,recipient_name,phone,address_line,city'])->get();
-        return ApiResponse::success($order);
+        if ($request->user()->id !== $order->user_id && $request->user()->role !== 'admin') {
+            abort(403, 'You cannot view this order.');
+        }
+
+        return ApiResponse::success(
+            new OrderResource($order->load(['items', 'address:id,recipient_name,phone,address_line,city', 'payment']))
+        );
     }
 
     /**

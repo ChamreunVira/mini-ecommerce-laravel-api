@@ -29,9 +29,11 @@ Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
 
 //product routes
 Route::get('/products', [ProductController::class, 'index']);
-Route::get('/products/{product}', [ProductController::class, 'show']);
+Route::get('/products/best-selling', [ProductController::class, 'bestSelling']);
+Route::get('/products/{product}', [ProductController::class, 'show'])->whereNumber('product');
 Route::apiResource('/products', ProductController::class)
     ->middleware(['auth:sanctum', 'role:admin'])
+    ->whereNumber('product')
     ->except(['index', 'show']);
 
 //category routes

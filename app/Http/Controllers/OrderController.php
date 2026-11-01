@@ -19,10 +19,6 @@ class OrderController extends Controller
 {
     private const SORTABLE_COLUMNS = ['created_at', 'total', 'status', 'order_number'];
 
-    /**
-     * Statuses in which an order has already taken its items out of stock.
-     * Adjust the case names to match your OrderStatus enum.
-     */
     private const STOCK_HOLDING_STATUSES = [
         OrderStatus::comfirmed,
         OrderStatus::shipped,
@@ -31,9 +27,6 @@ class OrderController extends Controller
 
     private float $shippingFee = 0.00;
 
-    /**
-     * Display a listing of all orders (admin).
-     */
     public function index(Request $request): JsonResponse
     {
         [$sortBy, $direction, $limit] = $this->validateListingOptions($request);

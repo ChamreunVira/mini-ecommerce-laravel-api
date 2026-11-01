@@ -19,7 +19,7 @@ class OrderController extends Controller
 {
     private const SORTABLE_COLUMNS = ['created_at', 'total', 'status', 'order_number'];
 
-    private const STOCK_HOLDING_STATUSES = [
+    private const STOCK_RESERVED_STATUSES = [
         OrderStatus::comfirmed,
         OrderStatus::shipped,
         OrderStatus::paid,
@@ -182,12 +182,12 @@ class OrderController extends Controller
             ? $order->status
             : OrderStatus::from($order->status);
 
-        $wasHoldingStock = in_array($previousStatus, self::STOCK_HOLDING_STATUSES, true);
-        $willHoldStock = in_array($newStatus, self::STOCK_HOLDING_STATUSES, true);
+        $wasReserved = in_array($previousStatus, self::STOCK_RESERVED_STATUSES, true);
+        $willBeReserved = in_array($newStatus, self::STOCK_RESERVED_STATUSES, true);
 
-        if (! $wasHoldingStock && $willHoldStock) {
+        if (! $wasReserved && $willBeReserved) {
             $this->deductStock($order);
-        } elseif ($wasHoldingStock && ! $willHoldStock) {
+        } elseif ($wasReserved && ! $willBeReserved) {
             $this->restoreStock($order);
         }
     }

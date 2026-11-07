@@ -20,7 +20,9 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        'http://localhost:3000'
+        'http://localhost:3000',
+        'http://vst4re.vercel.app',
+        'http://vst4rekh.vercel.app'
     ],
 
     'allowed_origins_patterns' => [],

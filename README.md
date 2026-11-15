@@ -17,25 +17,25 @@
 
 ## 📑 Table of Contents
 
-1. [🌟 Overview](#-overview)
-2. [💡 Problems We Solve](#-problems-we-solve)
-3. [🚀 Key Features](#-key-features)
-4. [🛠️ Tech Stack](#️-tech-stack)
-5. [🗂️ Project Structure](#️-project-structure)
-6. [📊 Entity Relationship Diagram (ERD)](#-entity-relationship-diagram-erd)
+1. [Overview](#-overview)
+2. [Problems We Solve](#-problems-we-solve)
+3. [Key Features](#-key-features)
+4. [Tech Stack](#️-tech-stack)
+5. [Project Structure](#️-project-structure)
+6. [Entity Relationship Diagram (ERD)](#-entity-relationship-diagram-erd)
    - [Diagram Visualization](#erd-diagram-visualization)
    - [Visual & Relationship Explanation](#erd-visual--relationship-explanation)
-7. [☁️ Deployment Architecture](#️-deployment-architecture)
+7. [Deployment Architecture](#️-deployment-architecture)
    - [Architecture Diagram](#deployment-architecture-diagram)
    - [CI/CD Flow Explanation](#cicd-flow-explanation)
-8. [💳 Payment Flow (Bakong KHQR Integration)](#-payment-flow-bakong-khqr-integration)
-9. [⚙️ Setup & Installation](#️-setup--installation)
+8. [Payment Flow (Bakong KHQR Integration)](#-payment-flow-bakong-khqr-integration)
+9. [Setup & Installation](#️-setup--installation)
    - [Prerequisites](#1-prerequisites)
    - [Option A: Local Setup](#option-a-local-environment-setup)
    - [Option B: Docker Setup](#option-b-docker-environment-setup)
    - [Environment Variables Guide](#environment-variables-guide)
-10. [📡 API Endpoints Reference](#-api-endpoints-reference)
-11. [🎯 Conclusion & Roadmap](#-conclusion--roadmap)
+10. [API Endpoints Reference](#-api-endpoints-reference)
+11. [Conclusion & Roadmap](#-conclusion--roadmap)
 
 ---
 
@@ -405,7 +405,25 @@ sequenceDiagram
 
 ### 1. Prerequisites
 
-Make sure the following tools are installed on your machine:
+Make sure the following tools are installed on your machine:ntrollers\CategoryController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OverviewController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\WishlistController;
+use Illuminate\Support\Facades\Route;
+
+
+//auth routes
+
+Route::group(["prefix" => "auth"], function () {
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register']);
+});
+
+Route::middleware('auth:sanctum')->prefix('auth')->group(function () {
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::patch
 - **PHP**: `>= 8.2` (PHP 8.3 or 8.5 recommended) with `pdo_pgsql`, `bcmath`, `gd`, `zip`
 - **Composer**: `>= 2.x`
 - **Docker & Docker Compose**: (for running the PostgreSQL container)

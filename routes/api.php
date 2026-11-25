@@ -38,6 +38,7 @@ Route::apiResource('/products', ProductController::class)
 
 //category routes
 Route::get('/categories', [CategoryController::class, 'index']);
+Route::post('/categories/{category}', [CategoryController::class, 'update'])->middleware(['auth:sanctum', 'role:admin']);
 Route::apiResource('/categories', CategoryController::class)->middleware(['auth:sanctum', 'role:admin'])->except('index');
 
 // admin overview

@@ -17,22 +17,33 @@ class CategoryController extends Controller
         $categories = Category::all();
         return ApiResponse::success($categories);
     }
+
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-        $validated =  $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|min:3',
+            'description' => 'sometimes|nullable|string',
             'status' => ['sometimes', 'string', Rule::in(['active', 'inactive'])],
+            'image' => 'sometimes|nullable|image|mimes:png,jpg,webp,jpeg|max:10240',
         ]);
 
-        $category = Category::create([
-            ...$validated,
+        $categoryData = [
+            'name' => $validated['name'],
             'slug' => self::generateSlug($validated['name']),
-        ]);
+            'description' => $validated['description'] ?? null,
+            'status' => $validated['status'] ?? 'active',
+        ];
 
-        return response()->json($category, 201);
+        if ($request->hasFile('image')) {
+            $categoryData['image'] = $request->file('image')->store('categories', 'public');
+        }
+
+        $category = Category::create($categoryData);
+
+        return ApiResponse::success($category, "Created category successfully.", 201);
     }
 
     /**
@@ -52,11 +63,31 @@ class CategoryController extends Controller
             'name' => 'sometimes|string|min:3',
             'description' => 'sometimes|nullable|string',
             'status' => ['sometimes', 'string', Rule::in(['active', 'inactive'])],
+            'image' => 'sometimes|nullable|image|mimes:png,jpg,webp,jpeg|max:10240',
         ]);
 
-        $category->update($validated);
+        $categoryData = [];
 
-        return ApiResponse::success($category->fresh());
+        if (isset($validated['name'])) {
+            $categoryData['name'] = $validated['name'];
+            $categoryData['slug'] = self::generateSlug($validated['name']);
+        }
+
+        if (array_key_exists('description', $validated)) {
+            $categoryData['description'] = $validated['description'];
+        }
+
+        if (isset($validated['status'])) {
+            $categoryData['status'] = $validated['status'];
+        }
+
+        if ($request->hasFile('image')) {
+            $categoryData['image'] = $request->file('image')->store('categories', 'public');
+        }
+
+        $category->update($categoryData);
+
+        return ApiResponse::success($category->fresh(), "Category updated successfully.");
     }
 
     /**
@@ -72,7 +103,7 @@ class CategoryController extends Controller
         return response()->json($category, 200);
     }
 
-    private function generateSlug(string $name): string
+    private static function generateSlug(string $name): string
     {
         return strtolower(str_replace(' ', '-', $name));
     }
